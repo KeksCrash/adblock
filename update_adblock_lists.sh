@@ -1,4 +1,4 @@
-#!/bin/bash 
+#!/bin/bash
 
 # Verzeichnisse
 BLOCKLIST_DIR="/sd/adblock/lists"
@@ -12,7 +12,7 @@ declare -A blocklists=(
     ["https://github.com/Perflyst/PiHoleBlocklist"]="adb_list.firetv_tracking.gz"
     ["https://github.com/privacy-protection-tools/anti-A"]="adb_list.anti_ad.gz"
     ["https://github.com/anudeepND/blacklist"]="adb_list.anudeep.gz"
-    ["https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/hosts"]="adb_list.bitcoin.gz"  # Korrigierte URL
+    ["https://raw.githubusercontent.com/hoshsadiq/adblock-nocoin-list/master/hosts"]="adb_list.bitcoin.gz"
     ["https://disconnect.me"]="adb_list.disconnect.gz"
     ["https://energized.pro"]="adb_list.energized.gz"
     ["https://github.com/abyssin/pihole-blocklist"]="adb_list.smarttv_tracking.gz"
@@ -34,7 +34,7 @@ download_blocklist() {
     local output_file="$BLOCKLIST_DIR/$filename"
 
     echo "[INFO] Downloading blocklist from $url..." | tee -a "$LOG_FILE"
-    
+
     # Blockliste herunterladen und in das Zielverzeichnis speichern
     curl -s -o "$output_file" "$url"
 
@@ -63,6 +63,13 @@ replace_blocklist() {
     fi
 }
 
+# Funktion zur Überprüfung, ob eine Blockliste bereits hinzugefügt wurde
+is_blocklist_added() {
+    local name=$1
+    iad status | grep -q "$name"
+    return $?
+}
+
 # Hauptskript
 
 echo "[INFO] Starting Adblock list update process..." | tee -a "$LOG_FILE"
@@ -80,6 +87,20 @@ done
 # Ersetze die Blocklisten im /tmp/adb_ Verzeichnis
 for filename in "${blocklists[@]}"; do
     replace_blocklist "$filename"
+done
+
+# Überprüfe und füge neue Blocklisten hinzu, falls sie noch nicht aktiv sind
+for url in "${!blocklists[@]}"; do
+    list_name=$(basename "$url" | sed 's/\//_/g')  # Erstelle einen Namen für die Liste
+    filename="${blocklists[$url]}"
+    
+    # Überprüfe, ob die Liste bereits hinzugefügt wurde
+    if ! is_blocklist_added "$list_name"; then
+        echo "[INFO] Adding new blocklist: $list_name"
+        iad list add "$list_name"
+    else
+        echo "[INFO] Blocklist already exists: $list_name"
+    fi
 done
 
 echo "[INFO] All blocklists are up-to-date!" | tee -a "$LOG_FILE"
